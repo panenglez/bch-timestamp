@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>BCH Timestamp</title>
 
-<script src="https://cdn.jsdelivr.net/npm/mainnet-js@2.6.4/dist/mainnet.min.js"></script>
-  
+<script src="https://cdn.jsdelivr.net/npm/mainnet-js@2.7.19/dist/mainnet.min.js"></script>
+
 <style>
 body{
 font-family:Arial;
@@ -85,9 +85,9 @@ try{
 
 log.innerText="Creating wallet..."
 
-  const wallet = await Mainnet.Wallet.fromWIF(wif)
+const wallet = await Mainnet.Wallet.fromWIF(wif)
 
-  log.innerText="Hashing file..."
+log.innerText="Hashing file..."
 
 const buffer = await file.arrayBuffer()
 
@@ -100,7 +100,7 @@ const hash = Array.from(new Uint8Array(hashBuffer))
 log.innerText="Sending transaction..."
 
 const result = await wallet.send([{
-opReturn:["0x6d02",hash]
+opReturn:[hash]
 }])
 
 log.innerHTML = `

@@ -2,7 +2,9 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>BCH Simple Timestamp</title>
+<title>BCH Timestamp</title>
+
+<script src="https://cdn.jsdelivr.net/npm/mainnet-js@2.7.19/dist/mainnet.browser.min.js"></script>
 
 <style>
 
@@ -43,7 +45,7 @@ color:#00ff00;
 padding:10px;
 font-family:monospace;
 font-size:12px;
-min-height:80px;
+min-height:90px;
 word-break:break-all;
 }
 
@@ -56,11 +58,11 @@ word-break:break-all;
 
 <h2>BCH File Timestamp</h2>
 
+<input type="password" id="wif" placeholder="Paste WIF private key">
+
 <input type="file" id="file">
 
-<input type="text" id="wif" placeholder="Paste WIF private key">
-
-<button onclick="timestamp()">Timestamp</button>
+<button onclick="timestamp()">Timestamp File</button>
 
 <div id="log">Ready.</div>
 
@@ -84,24 +86,43 @@ async function timestamp(){
 
 const log = document.getElementById("log")
 
+const wif = document.getElementById("wif").value
 const file = document.getElementById("file").files[0]
 
-if(!file){
-alert("Select a file")
+if(!wif || !file){
+alert("Insert WIF and file")
 return
 }
+
+try{
 
 log.innerText="Hashing file..."
 
 const hash = await sha256(file)
 
-log.innerText="File hash:\n"+hash+"\n\nCreating OP_RETURN..."
+log.innerText="File hash:\n"+hash+"\n\nLoading wallet..."
 
-const opreturn = "6a20"+hash
+const wallet = await mainnet.Wallet.fromWIF(wif)
 
-log.innerText="OP_RETURN data:\n"+opreturn
+log.innerText="Sending BCH transaction..."
 
-log.innerText += "\n\nNote:\nBroadcasting requires a BCH wallet backend.\nThis demo shows the hash that should be written on-chain."
+const result = await wallet.send([
+{
+opReturn:[hash]
+}
+])
+
+log.innerHTML =
+"SUCCESS\n\nTXID:\n"+
+result.txId+
+"\n\nExplorer:\n"+
+"https://blockchair.com/bitcoin-cash/transaction/"+result.txId
+
+}catch(e){
+
+log.innerText="ERROR:\n"+e.message
+
+}
 
 }
 

@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>BCH Timestamp</title>
 
-<script src="https://unpkg.com/mainnet-js@2.6.4/dist/mainnet.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/mainnet-js@2.6.4/dist/mainnet.min.js"></script>
+  
 <style>
 body{
 font-family:Arial;
@@ -85,8 +85,8 @@ try{
 
 log.innerText="Creating wallet..."
 
-const wallet = await mainnet.Wallet.fromWIF(wif)
-
+const wallet = await window.mainnet.Wallet.fromWIF(wif)
+  
 log.innerText="Hashing file..."
 
 const buffer = await file.arrayBuffer()

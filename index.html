@@ -2,25 +2,24 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>BCH Timestamp</title>
-
-<script src="https://cdn.jsdelivr.net/npm/mainnet-js@2.7.19/dist/mainnet.min.js"></script>
+<title>BCH Simple Timestamp</title>
 
 <style>
+
 body{
 font-family:Arial;
 background:#f2f2f2;
 display:flex;
 justify-content:center;
-padding-top:50px;
+padding-top:60px;
 }
 
 .card{
 background:white;
 padding:30px;
-border-radius:10px;
 width:420px;
-box-shadow:0 4px 12px rgba(0,0,0,0.15);
+border-radius:10px;
+box-shadow:0 4px 15px rgba(0,0,0,0.15);
 }
 
 input,button{
@@ -38,30 +37,30 @@ cursor:pointer;
 }
 
 #log{
+margin-top:15px;
 background:black;
 color:#00ff00;
 padding:10px;
-margin-top:15px;
 font-family:monospace;
 font-size:12px;
 min-height:80px;
 word-break:break-all;
 }
-</style>
 
+</style>
 </head>
 
 <body>
 
 <div class="card">
 
-<h2>BCH Timestamp</h2>
-
-<input type="password" id="wif" placeholder="Paste WIF private key">
+<h2>BCH File Timestamp</h2>
 
 <input type="file" id="file">
 
-<button onclick="timestamp()">Timestamp File</button>
+<input type="text" id="wif" placeholder="Paste WIF private key">
+
+<button onclick="timestamp()">Timestamp</button>
 
 <div id="log">Ready.</div>
 
@@ -69,52 +68,40 @@ word-break:break-all;
 
 <script>
 
-async function timestamp(){
-
-const log = document.getElementById("log")
-
-const wif = document.getElementById("wif").value
-const file = document.getElementById("file").files[0]
-
-if(!wif || !file){
-alert("Insert WIF and file")
-return
-}
-
-try{
-
-log.innerText="Creating wallet..."
-
-const wallet = await Mainnet.Wallet.fromWIF(wif)
-
-log.innerText="Hashing file..."
+async function sha256(file){
 
 const buffer = await file.arrayBuffer()
 
 const hashBuffer = await crypto.subtle.digest("SHA-256",buffer)
 
-const hash = Array.from(new Uint8Array(hashBuffer))
+return Array.from(new Uint8Array(hashBuffer))
 .map(b=>b.toString(16).padStart(2,"0"))
 .join("")
 
-log.innerText="Sending transaction..."
-
-const result = await wallet.send([{
-opReturn:[hash]
-}])
-
-log.innerHTML = `
-SUCCESS
-
-TXID:
-https://blockchair.com/bitcoin-cash/transaction/${result.txId}
-`
-
-}catch(e){
-
-log.innerText="ERROR: "+e.message
-
 }
+
+async function timestamp(){
+
+const log = document.getElementById("log")
+
+const file = document.getElementById("file").files[0]
+
+if(!file){
+alert("Select a file")
+return
+}
+
+log.innerText="Hashing file..."
+
+const hash = await sha256(file)
+
+log.innerText="File hash:\n"+hash+"\n\nCreating OP_RETURN..."
+
+const opreturn = "6a20"+hash
+
+log.innerText="OP_RETURN data:\n"+opreturn
+
+log.innerText += "\n\nNote:\nBroadcasting requires a BCH wallet backend.\nThis demo shows the hash that should be written on-chain."
 
 }
 

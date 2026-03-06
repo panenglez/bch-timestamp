@@ -3,19 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BCH Notary - Timestamp App</title>
+    <title>BCH Notary</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; background: #f4f4f4; }
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; background: #f4f4f4; }
         .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; text-align: center; }
+        h1 { text-align: center; }
         .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #555; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
         input[type="text"], input[type="file"] { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 1rem; background: #0070f3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0050a0; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { margin-top: 1.5rem; padding: 1rem; background: #eef; border-radius: 4px; word-break: break-all; font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; }
-        .warning { background: #fff3cd; color: #856404; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.9rem; border: 1px solid #ffeeba; }
+        button { width: 100%; padding: 1rem; background: #0070f3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        #status { margin-top: 1.5rem; padding: 1rem; background: #eef; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
         .error { background: #f8d7da; color: #721c24; }
     </style>
 </head>
@@ -23,32 +21,22 @@
 
 <div class="container">
     <h1>BCH Notary</h1>
-    
-    <div class="warning">
-        <strong>⚠️ Security Warning:</strong> 
-        1. Never use a wallet with significant funds. 
-        2. This app runs in your browser, but private keys are sensitive. 
-        3. Use a dedicated "burn wallet" with only enough BCH for fees.
-    </div>
-
     <div class="form-group">
-        <label for="wif">WIF Private Key (Mainnet):</label>
-        <input type="text" id="wif" placeholder="e.g. L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ">
+        <label>WIF Private Key:</label>
+        <input type="text" id="wif" placeholder="L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ">
     </div>
-
     <div class="form-group">
-        <label for="fileInput">Select File to Timestamp:</label>
+        <label>Select File:</label>
         <input type="file" id="fileInput">
     </div>
-
     <button id="timestampBtn">TIMESTAMP NOW</button>
-
     <div id="status">Status: Ready.</div>
 </div>
 
-<!-- Use type="module" to enable imports -->
+<!-- IMPORTANT: type="module" is required for imports -->
 <script type="module">
-    // Import mainnet-js from esm.sh (CDN that supports browser modules)
+    console.log("Script loaded successfully"); // Debug log
+    
     import { Wallet, Network, relay } from 'https://esm.sh/mainnet-js@1.2.0';
 
     const statusDiv = document.getElementById('status');
@@ -59,6 +47,7 @@
     function setStatus(msg, isError = false) {
         statusDiv.textContent = `Status: ${msg}`;
         statusDiv.className = isError ? 'error' : '';
+        console.log(msg);
     }
 
     async function hashFile(file) {
@@ -69,59 +58,36 @@
     }
 
     btn.addEventListener('click', async () => {
+        console.log("Button clicked"); // Debug log
         const wif = wifInput.value.trim();
         const file = fileInput.files[0];
 
-        if (!wif) {
-            setStatus("Error: Please enter a WIF Private Key", true);
-            return;
-        }
-        if (!file) {
-            setStatus("Error: Please select a file", true);
-            return;
-        }
+        if (!wif) { setStatus("Error: Enter WIF Key", true); return; }
+        if (!file) { setStatus("Error: Select File", true); return; }
 
         btn.disabled = true;
-        setStatus("Hashing file...");
+        setStatus("Hashing...");
 
         try {
-            // 1. Hash the file
             const fileHash = await hashFile(file);
-            setStatus(`File Hash: ${fileHash}\nPreparing transaction...`);
+            setStatus(`Hash: ${fileHash}\nBuilding Tx...`);
 
-            // 2. Initialize Wallet
-            // Note: mainnet-js Wallet constructor expects (wif, network)
             const wallet = new Wallet(wif, Network.mainnet);
-            const address = wallet.address;
-
-            setStatus(`Wallet Address: ${address}\nBuilding OP_RETURN...`);
-
-            // 3. Create Transaction
-            // We send 0 BCH to ourselves, but attach data (OP_RETURN)
-            // Note: You MUST have BCH in this wallet to pay for fees (~0.00001 BCH)
+            
+            // Construct transaction
             const tx = await wallet.send({
-                to: address, 
+                to: wallet.address, 
                 amount: 0, 
-                data: fileHash // This creates the OP_RETURN
+                data: fileHash 
             });
 
             setStatus(`Broadcasting...`);
-
-            // 4. Relay to Network
             const txid = await relay(tx);
-
-            setStatus(`✅ SUCCESS!\n\nTransaction ID:\n${txid}\n\nView on explorer:\nhttps://blockchair.com/bitcoin-cash/transaction/${txid}`, false);
+            setStatus(`✅ Success! TxID: ${txid}`, false);
 
         } catch (error) {
             console.error(error);
-            // Clean up error message
-            let msg = error.message;
-            if (msg.includes("insufficient funds")) {
-                msg = "Error: Insufficient funds. This wallet needs BCH to pay transaction fees.";
-            } else if (msg.includes("network")) {
-                msg = "Error: Network issue. Check your connection.";
-            }
-            setStatus(`Error: ${msg}`, true);
+            setStatus(`Error: ${error.message}`, true);
         } finally {
             btn.disabled = false;
         }

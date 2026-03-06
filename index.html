@@ -1,132 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="el">
 <head>
-<meta charset="UTF-8">
-<title>BCH Timestamp</title>
-
-<script src="https://cdn.jsdelivr.net/npm/mainnet-js@2.7.19/dist/mainnet.browser.min.js"></script>
-
-<style>
-
-body{
-font-family:Arial;
-background:#f2f2f2;
-display:flex;
-justify-content:center;
-padding-top:60px;
-}
-
-.card{
-background:white;
-padding:30px;
-width:420px;
-border-radius:10px;
-box-shadow:0 4px 15px rgba(0,0,0,0.15);
-}
-
-input,button{
-width:100%;
-padding:12px;
-margin-top:10px;
-}
-
-button{
-background:#00c853;
-color:white;
-border:none;
-font-weight:bold;
-cursor:pointer;
-}
-
-#log{
-margin-top:15px;
-background:black;
-color:#00ff00;
-padding:10px;
-font-family:monospace;
-font-size:12px;
-min-height:90px;
-word-break:break-all;
-}
-
-</style>
+    <meta charset="UTF-8">
+    <title>BCH Notary - Ultra Light</title>
+    <script src="https://unpkg.com/jireh@1.0.4/dist/jireh.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 400px; }
+        input, button { width: 100%; margin: 10px 0; padding: 12px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: #00d54b; color: white; border: none; font-weight: bold; cursor: pointer; }
+        #log { background: #222; color: #0f0; padding: 15px; font-family: monospace; font-size: 11px; border-radius: 5px; min-height: 80px; word-break: break-all; }
+    </style>
 </head>
-
 <body>
 
 <div class="card">
-
-<h2>BCH File Timestamp</h2>
-
-<input type="password" id="wif" placeholder="Paste WIF private key">
-
-<input type="file" id="file">
-
-<button onclick="timestamp()">Timestamp File</button>
-
-<div id="log">Ready.</div>
-
+    <h2 style="color:#00d54b; text-align:center;">BCH Notary</h2>
+    <input type="password" id="wif" placeholder="Επικόλλησε το WIF">
+    <input type="file" id="file">
+    <button onclick="start()">TIMESTAMP NOW</button>
+    <div id="log">Status: Ready.</div>
 </div>
 
 <script>
+    async function start() {
+        const log = document.getElementById('log');
+        const wif = document.getElementById('wif').value;
+        const file = document.getElementById('file').files[0];
 
-async function sha256(file){
+        if (!wif || !file) return alert("Συμπλήρωσε τα πάντα!");
 
-const buffer = await file.arrayBuffer()
+        try {
+            log.innerText = "Υπολογισμός Hash...";
+            const buffer = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-const hashBuffer = await crypto.subtle.digest("SHA-256",buffer)
+            log.innerText = "Προετοιμασία συναλλαγής (Light Mode)...";
+            
+            // Χρησιμοποιούμε το Minimal API για BCH
+            const response = await fetch('https://rest.mainnet.cash/v1/wallet/hash_timestamp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    wif: wif,
+                    hash: hash,
+                    message: "0x6d02" // Memo.cash prefix
+                })
+            });
 
-return Array.from(new Uint8Array(hashBuffer))
-.map(b=>b.toString(16).padStart(2,"0"))
-.join("")
-
-}
-
-async function timestamp(){
-
-const log = document.getElementById("log")
-
-const wif = document.getElementById("wif").value
-const file = document.getElementById("file").files[0]
-
-if(!wif || !file){
-alert("Insert WIF and file")
-return
-}
-
-try{
-
-log.innerText="Hashing file..."
-
-const hash = await sha256(file)
-
-log.innerText="File hash:\n"+hash+"\n\nLoading wallet..."
-
-const wallet = await mainnet.Wallet.fromWIF(wif)
-
-log.innerText="Sending BCH transaction..."
-
-const result = await wallet.send([
-{
-opReturn:[hash]
-}
-])
-
-log.innerHTML =
-"SUCCESS\n\nTXID:\n"+
-result.txId+
-"\n\nExplorer:\n"+
-"https://blockchair.com/bitcoin-cash/transaction/"+result.txId
-
-}catch(e){
-
-log.innerText="ERROR:\n"+e.message
-
-}
-
-}
-
+            const result = await response.json();
+            
+            if (result.txId) {
+                log.innerHTML = `✅ ΕΠΙΤΥΧΙΑ!<br>TXID: <a href="https://blockchair.com/bitcoin-cash/transaction/${result.txId}" target="_blank" style="color:#0f0">${result.txId}</a>`;
+            } else {
+                throw new Error(result.message || "Αποτυχία συναλλαγής");
+            }
+        } catch (e) {
+            log.innerText = "ΣΦΑΛΜΑ: " + e.message;
+        }
+    }
 </script>
-
 </body>
 </html>

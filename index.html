@@ -2,72 +2,93 @@
 <html lang="el">
 <head>
     <meta charset="UTF-8">
-    <title>BCH Notary - Firefox Ready</title>
-    <script src="https://unpkg.com/mainnet-js/dist/mainnet.js"></script>
+    <title>BCH Notary - Direct Mode</title>
+    <script src="https://unpkg.com/@psf/bch-js"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 400px; }
-        input, button { width: 100%; margin: 10px 0; padding: 12px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #00d54b; color: white; border: none; font-weight: bold; cursor: pointer; height: 50px; }
-        button:disabled { background: #ccc; cursor: wait; }
-        #log { background: #222; color: #0f0; padding: 15px; font-family: monospace; font-size: 11px; border-radius: 5px; min-height: 80px; word-break: break-all; white-space: pre-wrap; margin-top: 15px; }
+        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 50px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 400px; text-align: center; }
+        input, button { width: 100%; margin: 10px 0; padding: 12px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: #00d54b; color: white; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
+        #log { background: #1a1a1a; color: #00ff00; padding: 15px; font-family: monospace; font-size: 12px; border-radius: 8px; min-height: 80px; word-break: break-all; margin-top: 20px; text-align: left; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color:#00d54b; text-align:center;">BCH Notary</h2>
-    <input type="password" id="wif" placeholder="Επικόλλησε το WIF">
+    <h2 style="color: #00d54b;">BCH Notary</h2>
+    <p style="font-size: 12px; color: #666;">Εισάγετε το WIF και το αρχείο σας</p>
+    
+    <input type="password" id="wif" placeholder="Επικόλλησε το WIF εδώ">
     <input type="file" id="file">
     
-    <button id="mainBtn" onclick="doWork()" disabled>ΠΑΡΑΚΑΛΩ ΠΕΡΙΜΕΝΕΤΕ...</button>
+    <button onclick="doTimestamp()">ΚΑΤΑΧΩΡΗΣΗ ΤΩΡΑ</button>
     
-    <div id="log">Status: Ο Firefox φορτώνει τη βιβλιοθήκη (7MB)...</div>
+    <div id="log">Status: Έτοιμο για χρήση.</div>
 </div>
 
 <script>
-    const btn = document.getElementById('mainBtn');
-    const log = document.getElementById('log');
-
-    // Συνάρτηση που ελέγχει κάθε δευτερόλεπτο αν ο Firefox "ξεκλείδωσε" τη βιβλιοθήκη
-    const checker = setInterval(() => {
-        if (window.mainnet) {
-            log.innerText = "✅ Η βιβλιοθήκη φορτώθηκε! Έτοιμος.";
-            btn.disabled = false;
-            btn.innerText = "TIMESTAMP NOW";
-            clearInterval(checker);
-        }
-    }, 1000);
-
-    async function doWork() {
+    async function doTimestamp() {
+        const log = document.getElementById('log');
         const wif = document.getElementById('wif').value.trim();
         const file = document.getElementById('file').files[0];
 
-        if (!wif || !file) return alert("Συμπλήρωσε τα πεδία!");
+        if (!wif || !file) {
+            alert("Παρακαλώ βάλε το WIF και διάλεξε ένα αρχείο.");
+            return;
+        }
 
         try {
-            btn.disabled = true;
-            btn.innerText = "ΕΠΕΞΕΡΓΑΣΙΑ...";
-            
-            log.innerText = "1. Υπολογισμός Hash...";
+            log.innerText = "1. Υπολογισμός SHA-256...";
             const buffer = await file.arrayBuffer();
             const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
             const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-            log.innerText = "2. Σύνδεση με το Πορτοφόλι...";
-            const wallet = await window.mainnet.Wallet.fromWIF(wif);
+            log.innerText = "2. Προετοιμασία βιβλιοθήκης...";
+            const bchjs = new BCHJS();
             
-            log.innerText = "3. Αποστολή στο Blockchain...";
-            const { txId } = await wallet.send([{ opReturn: ["0x6d02", hash] }]);
+            log.innerText = "3. Έλεγχος υπολοίπου & Σύνδεση...";
+            // Εδώ η εφαρμογή συνδέεται με το δίκτυο
+            const ecpair = bchjs.ECPair.fromWIF(wif);
+            const address = bchjs.ECPair.toCashAddress(ecpair);
+            
+            log.innerText = "Hash: " + hash + "\nΑποστολή στο Blockchain...";
+            
+            // Σημείωση: Αυτό το κομμάτι στέλνει το OP_RETURN απευθείας
+            const utxos = await bchjs.Electrumx.utxo(address);
+            if(utxos.utxos.length === 0) throw new Error("Το πορτοφόλι είναι άδειο!");
 
-            log.innerHTML = `✅ ΕΠΙΤΥΧΙΑ!<br><br>TXID:<br><a href="https://blockchair.com/bitcoin-cash/transaction/${txId}" target="_blank" style="color:#0f0">${txId}</a>`;
-            btn.innerText = "ΟΛΟΚΛΗΡΩΘΗΚΕ";
+            const transactionBuilder = new bchjs.TransactionBuilder();
+            const originalAmount = utxos.utxos[0].value;
+            const vout = utxos.utxos[0].tx_pos;
+            const txid = utxos.utxos[0].tx_hash;
+
+            transactionBuilder.addInput(txid, vout);
+            
+            // Το "μαγικό" OP_RETURN για το Notary
+            const data = bchjs.Script.encode([
+                bchjs.Script.opcodes.OP_RETURN,
+                Buffer.from('6d02', 'hex'), // Memo.cash prefix
+                Buffer.from(hash, 'hex')
+            ]);
+            
+            transactionBuilder.addOutput(data, 0);
+            transactionBuilder.addOutput(address, originalAmount - 1000); // 1000 sats fee
+
+            transactionBuilder.sign(0, ecpair, null, transactionBuilder.hashTypes.SIGHASH_ALL, originalAmount);
+            const hex = transactionBuilder.build().toHex();
+            
+            const broadcast = await bchjs.RawTransactions.sendRawTransaction(hex);
+            
+            log.innerHTML = "✅ ΕΠΙΤΥΧΙΑ!<br><br>TXID:<br><a href='https://blockchair.com/bitcoin-cash/transaction/" + broadcast + "' target='_blank' style='color:#0f0;'>" + broadcast + "</a>";
+
         } catch (e) {
             log.innerText = "❌ ΣΦΑΛΜΑ: " + e.message;
-            btn.disabled = false;
-            btn.innerText = "TIMESTAMP NOW";
+            if(e.message.includes("BCHJS is not defined")) {
+                log.innerText = "Η βιβλιοθήκη δεν φορτώθηκε. Δοκίμασε να κλείσεις το AdBlock στον Firefox.";
+            }
         }
     }
 </script>
+
 </body>
 </html>

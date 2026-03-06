@@ -2,57 +2,65 @@
 <html lang="el">
 <head>
     <meta charset="UTF-8">
-    <title>BCH Notary Lite</title>
-    <script src="https://unpkg.com/cashscript@0.10.1/dist/cashscript.js"></script>
+    <title>BCH Notary - Final Engine</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 400px; }
-        input, button { width: 100%; margin: 10px 0; padding: 12px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #00d54b; color: white; border: none; font-weight: bold; cursor: pointer; }
-        #log { background: #222; color: #0f0; padding: 15px; font-family: monospace; font-size: 11px; border-radius: 5px; min-height: 80px; word-break: break-all; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { color: #00d54b; text-align: center; margin-top: 0; }
+        input, button { width: 100%; margin: 10px 0; padding: 15px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 14px; }
+        button { background: #00d54b; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #00b03e; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #log { background: #1a1a1a; color: #00ff00; padding: 15px; font-family: monospace; font-size: 12px; border-radius: 8px; min-height: 100px; word-break: break-all; margin-top: 20px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color:#00d54b; text-align:center;">BCH Notary Lite</h2>
+    <h2>BCH Notary</h2>
     <input type="password" id="wif" placeholder="Επικόλλησε το WIF">
     <input type="file" id="file">
-    <button onclick="start()">TIMESTAMP NOW</button>
+    <button id="btn" onclick="startNotary()">TIMESTAMP NOW</button>
     <div id="log">Status: Ready.</div>
 </div>
 
-<script>
-    async function start() {
-        const log = document.getElementById('log');
-        const wif = document.getElementById('wif').value;
-        const file = document.getElementById('file').files[0];
+<script type="module">
+    import BBS from 'https://cdn.skypack.dev/mainnet-js';
 
-        if (!wif || !file) return alert("Συμπλήρωσε WIF και αρχείο!");
+    window.startNotary = async () => {
+        const log = document.getElementById('log');
+        const wif = document.getElementById('wif').value.trim();
+        const file = document.getElementById('file').files[0];
+        const btn = document.getElementById('btn');
+
+        if (!wif || !file) return alert("Συμπλήρωσε WIF και Αρχείο!");
+
+        btn.disabled = true;
+        btn.innerText = "ΕΡΓΑΣΙΑ...";
 
         try {
-            log.innerText = "Υπολογισμός Hash...";
+            log.innerText = "1. Υπολογισμός SHA-256...";
             const buffer = await file.arrayBuffer();
             const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
             const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-
-            log.innerText = "Σύνδεση με το δίκτυο (Lite Mode)...";
             
-            // Χρησιμοποιούμε ένα δημόσιο API για την αποστολή για να μην χρειαζόμαστε το mainnet.js
-            const response = await fetch('https://rest.mainnet.cash/v1/wallet/hash_timestamp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    wif: wif,
-                    hash: hash,
-                    message: "0x6d02" 
-                })
-            });
-
-            const result = await response.json();
+            log.innerText += "\n2. Σύνδεση με το Blockchain...";
+            // Δημιουργία πορτοφαλιού απευθείας από το import
+            const wallet = await BBS.Wallet.fromWIF(wif);
             
-            if (result.txId) {
-                log.innerHTML = `✅ ΕΠΙΤΥΧΙΑ!<br>TXID: <a href="https://blockchair.com/bitcoin-cash/transaction/${result.txId}" target="_blank" style="color:#0f0">${result.txId}</a>`;
-            } else {
-                log.innerText = "Σφάλμα API: " + (result.message || "Αποτυχία");
-            }
+            log.innerText += "\n3. Αποστολή OP_RETURN: " + hash;
+            const { txId } = await wallet.send([{ opReturn: ["0x6d02", hash] }]);
+
+            log.innerHTML = `<b style="color:white">✅ ΕΠΙΤΥΧΙΑ!</b><br><br>TXID:<br><a href="https://blockchair.com/bitcoin-cash/transaction/${txId}" target="_blank" style="color:#00ff00; text-decoration:none">${txId}</a>`;
+            btn.innerText = "ΟΛΟΚΛΗΡΩΘΗΚΕ";
+        } catch (e) {
+            log.innerText = "❌ ΣΦΑΛΜΑ: " + e.message;
+            btn.disabled = false;
+            btn.innerText = "TIMESTAMP NOW";
+            console.error(e);
+        }
+    };
+</script>
+
+</body>
+</html>

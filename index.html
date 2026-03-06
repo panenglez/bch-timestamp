@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BCH Notary</title>
+    
+    <!-- Import Map to resolve modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "mainnet-js": "https://unpkg.com/mainnet-js@1.2.0/dist/web/mainnet.js"
+        }
+    }
+    </script>
+    
     <style>
         body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; background: #f4f4f4; }
         .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -33,11 +43,11 @@
     <div id="status">Status: Ready.</div>
 </div>
 
-<!-- IMPORTANT: type="module" is required for imports -->
 <script type="module">
-    console.log("Script loaded successfully"); // Debug log
+    import mainnet from 'mainnet-js';
     
-    import { Wallet, Network, relay } from 'https://esm.sh/mainnet-js@1.2.0';
+    console.log("Script loaded");
+    console.log("mainnet:", mainnet);
 
     const statusDiv = document.getElementById('status');
     const btn = document.getElementById('timestampBtn');
@@ -47,7 +57,6 @@
     function setStatus(msg, isError = false) {
         statusDiv.textContent = `Status: ${msg}`;
         statusDiv.className = isError ? 'error' : '';
-        console.log(msg);
     }
 
     async function hashFile(file) {
@@ -58,7 +67,6 @@
     }
 
     btn.addEventListener('click', async () => {
-        console.log("Button clicked"); // Debug log
         const wif = wifInput.value.trim();
         const file = fileInput.files[0];
 
@@ -70,20 +78,21 @@
 
         try {
             const fileHash = await hashFile(file);
-            setStatus(`Hash: ${fileHash}\nBuilding Tx...`);
+            setStatus(`Hash: ${fileHash}\nCreating transaction...`);
 
+            // Use mainnet-js to create wallet and transaction
+            const { Wallet, Network } = mainnet;
             const wallet = new Wallet(wif, Network.mainnet);
             
-            // Construct transaction
             const tx = await wallet.send({
-                to: wallet.address, 
-                amount: 0, 
-                data: fileHash 
+                to: wallet.address,
+                amount: 0,
+                data: fileHash
             });
 
             setStatus(`Broadcasting...`);
-            const txid = await relay(tx);
-            setStatus(`✅ Success! TxID: ${txid}`, false);
+            const txid = await mainnet.relay(tx);
+            setStatus(`✅ Success! TxID: ${txid}`);
 
         } catch (error) {
             console.error(error);

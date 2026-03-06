@@ -1,83 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BCH Notary</title>
-    <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; background: #f4f4f4; }
-        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; }
-        .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
-        input[type="text"], input[type="file"] { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 1rem; background: #0070f3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
-        button:disabled { background: #ccc; }
-        #status { margin-top: 1.5rem; padding: 1rem; background: #eef; border-radius: 4px; white-space: pre-wrap; font-family: monospace; word-break: break-all; }
-        .error { background: #f8d7da; color: #721c24; }
-        .warning { background: #fff3cd; color: #856404; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; }
-    </style>
+<meta charset="UTF-8">
+<title>BCH Notary</title>
+<style>
+body{font-family:sans-serif;max-width:600px;margin:40px auto;padding:20px;background:#f5f5f5}
+.container{background:#fff;padding:30px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
+h1{text-align:center;color:#333}
+.form-group{margin-bottom:20px}
+label{display:block;margin-bottom:8px;font-weight:bold}
+input[type="text"],input[type="file"]{width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box}
+button{width:100%;padding:15px;background:#0070f3;color:#fff;border:none;border-radius:4px;font-size:16px;cursor:pointer;font-weight:bold}
+button:hover{background:#0050a0}
+button:disabled{background:#ccc;cursor:not-allowed}
+#status{margin-top:20px;padding:15px;background:#eef;border-radius:4px;white-space:pre-wrap;font-family:monospace;word-break:break-all}
+.error{background:#f8d7da;color:#721c24}
+.warning{background:#fff3cd;color:#856404;padding:15px;border-radius:4px;margin-bottom:20px}
+</style>
 </head>
 <body>
 <div class="container">
-    <h1>BCH Notary</h1>
-    <div class="warning"><strong>Warning:</strong> Use only a wallet with small amounts of BCH.</div>
-    <div class="form-group">
-        <label>WIF Private Key:</label>
-        <input type="text" id="wif" placeholder="L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ">
-    </div>
-    <div class="form-group">
-        <label>Select File:</label>
-        <input type="file" id="fileInput">
-    </div>
-    <button id="timestampBtn">TIMESTAMP NOW</button>
-    <div id="status">Status: Ready.</div>
+<h1>🔐 BCH Notary</h1>
+<div class="warning">⚠️ Use only a wallet with small amounts of BCH</div>
+<div class="form-group">
+<label for="wif">WIF Private Key:</label>
+<input type="text" id="wif" placeholder="L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ">
 </div>
-
+<div class="form-group">
+<label for="fileInput">Select File:</label>
+<input type="file" id="fileInput">
+</div>
+<button id="timestampBtn">TIMESTAMP NOW</button>
+<div id="status">Status: Ready.</div>
+</div>
 <script>
-    const statusDiv = document.getElementById('status');
-    const btn = document.getElementById('timestampBtn');
-    
-    async function hashFile(file) {
-        const buffer = await file.arrayBuffer();
-        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    btn.addEventListener('click', async () => {
-        const wif = document.getElementById('wif').value.trim();
-        const file = document.getElementById('fileInput').files[0];
-
-        if (!wif) { statusDiv.textContent = 'Error: Enter WIF'; statusDiv.className = 'error'; return; }
-        if (!file) { statusDiv.textContent = 'Error: Select file'; statusDiv.className = 'error'; return; }
-
-        btn.disabled = true;
-        statusDiv.textContent = 'Hashing...';
-
-        try {
-            const fileHash = await hashFile(file);
-            statusDiv.textContent = `Hash: ${fileHash}\nSending...`;
-
-            const response = await fetch('/api/timestamp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wif, fileHash })
-            });
-
-            const result = await response.json();
-            
-            if (!response.ok) throw new Error(result.error);
-            
-            statusDiv.textContent = `✅ Success!\nTxID: ${result.txid}\nhttps://blockchair.com/bitcoin-cash/transaction/${result.txid}`;
-            statusDiv.className = '';
-        } catch (error) {
-            statusDiv.textContent = `Error: ${error.message}`;
-            statusDiv.className = 'error';
-        } finally {
-            btn.disabled = false;
-        }
-    });
+const statusDiv=document.getElementById('status');
+const btn=document.getElementById('timestampBtn');
+async function hashFile(file){
+const buffer=await file.arrayBuffer();
+const hashBuffer=await crypto.subtle.digest('SHA-256',buffer);
+const hashArray=Array.from(new Uint8Array(hashBuffer));
+return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+btn.addEventListener('click',async()=>{
+const wif=document.getElementById('wif').value.trim();
+const file=document.getElementById('fileInput').files[0];
+if(!wif){statusDiv.textContent='Error: Enter WIF Key';statusDiv.className='error';return;}
+if(!file){statusDiv.textContent='Error: Select a file';statusDiv.className='error';return;}
+btn.disabled=true;
+statusDiv.textContent='Hashing file...';
+try{
+const fileHash=await hashFile(file);
+statusDiv.textContent='File hash: '+fileHash+'\nSending to blockchain...';
+const response=await fetch('/api/timestamp',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({wif,fileHash})
+});
+const result=await response.json();
+if(!response.ok)throw new Error(result.error);
+statusDiv.textContent='✅ SUCCESS!\n\nTransaction ID:\n'+result.txid+'\n\nView: https://blockchair.com/bitcoin-cash/transaction/'+result.txid;
+statusDiv.className='';
+}catch(error){
+console.error(error);
+statusDiv.textContent='Error: '+error.message;
+statusDiv.className='error';
+}finally{
+btn.disabled=false;
+}
+});
 </script>
 </body>
 </html>

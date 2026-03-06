@@ -1,74 +1,30 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-<title>BCH Notary</title>
-<style>
-body{font-family:sans-serif;max-width:600px;margin:40px auto;padding:20px;background:#f5f5f5}
-.container{background:#fff;padding:30px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
-h1{text-align:center;color:#333}
-.form-group{margin-bottom:20px}
-label{display:block;margin-bottom:8px;font-weight:bold}
-input[type="text"],input[type="file"]{width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box}
-button{width:100%;padding:15px;background:#0070f3;color:#fff;border:none;border-radius:4px;font-size:16px;cursor:pointer;font-weight:bold}
-button:hover{background:#0050a0}
-button:disabled{background:#ccc;cursor:not-allowed}
-#status{margin-top:20px;padding:15px;background:#eef;border-radius:4px;white-space:pre-wrap;font-family:monospace;word-break:break-all}
-.error{background:#f8d7da;color:#721c24}
-.warning{background:#fff3cd;color:#856404;padding:15px;border-radius:4px;margin-bottom:20px}
-</style>
-</head>
+<head><meta charset="UTF-8"><title>BCH Notary</title></head>
 <body>
-<div class="container">
-<h1>🔐 BCH Notary</h1>
-<div class="warning">⚠️ Use only a wallet with small amounts of BCH</div>
-<div class="form-group">
-<label for="wif">WIF Private Key:</label>
-<input type="text" id="wif" placeholder="L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ">
-</div>
-<div class="form-group">
-<label for="fileInput">Select File:</label>
-<input type="file" id="fileInput">
-</div>
-<button id="timestampBtn">TIMESTAMP NOW</button>
-<div id="status">Status: Ready.</div>
-</div>
+<h1>BCH Notary</h1>
+<input type="text" id="wif" placeholder="WIF Private Key"><br><br>
+<input type="file" id="fileInput"><br><br>
+<button id="btn">TIMESTAMP</button>
+<div id="status">Ready</div>
 <script>
-const statusDiv=document.getElementById('status');
-const btn=document.getElementById('timestampBtn');
-async function hashFile(file){
-const buffer=await file.arrayBuffer();
-const hashBuffer=await crypto.subtle.digest('SHA-256',buffer);
-const hashArray=Array.from(new Uint8Array(hashBuffer));
-return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-btn.addEventListener('click',async()=>{
-const wif=document.getElementById('wif').value.trim();
-const file=document.getElementById('fileInput').files[0];
-if(!wif){statusDiv.textContent='Error: Enter WIF Key';statusDiv.className='error';return;}
-if(!file){statusDiv.textContent='Error: Select a file';statusDiv.className='error';return;}
-btn.disabled=true;
-statusDiv.textContent='Hashing file...';
+async function hashFile(f){const b=await f.arrayBuffer();const h=await crypto.subtle.digest("SHA-256",b);return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,"0")).join("")}
+document.getElementById("btn").onclick=async()=>{
+const w=document.getElementById("wif").value.trim();
+const f=document.getElementById("fileInput").files[0];
+const s=document.getElementById("status");
+if(!w||!f){s.textContent="Error: missing input";return}
+s.textContent="Hashing...";
 try{
-const fileHash=await hashFile(file);
-statusDiv.textContent='File hash: '+fileHash+'\nSending to blockchain...';
-const response=await fetch('/api/timestamp',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({wif,fileHash})
-});
-const result=await response.json();
-if(!response.ok)throw new Error(result.error);
-statusDiv.textContent='✅ SUCCESS!\n\nTransaction ID:\n'+result.txid+'\n\nView: https://blockchair.com/bitcoin-cash/transaction/'+result.txid;
-statusDiv.className='';
-}catch(error){
-console.error(error);
-statusDiv.textContent='Error: '+error.message;
-statusDiv.className='error';
-}finally{
-btn.disabled=false;
+const hash=await hashFile(f);
+s.textContent="Sending...";
+const r=await fetch("/api/timestamp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({wif:w,fileHash:hash})});
+const t=await r.text(); // Read as text first to debug
+if(!r.ok)throw new Error(t);
+const j=JSON.parse(t); // Then parse JSON
+s.textContent="✅ "+j.txid;
+}catch(e){s.textContent="Error: "+e.message}
 }
-});
 </script>
 </body>
 </html>

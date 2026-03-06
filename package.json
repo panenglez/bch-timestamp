@@ -1,9 +1,8 @@
 {
-  "functions": {
-    "api/*.js": {
-      "includeFiles": "package.json"
-    }
-  },
-  "buildCommand": "npm install",
-  "outputDirectory": "."
+  "name": "bch-timestamp",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "mainnet-js": "1.2.0"
+  }
 }

@@ -1,15 +1,7 @@
 {
   "name": "bch-timestamp",
   "version": "1.0.0",
-  "description": "BCH Blockchain Timestamp App",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "dependencies": {
     "mainnet-js": "^1.2.0"
-  },
-  "keywords": ["bitcoin", "cash", "bch", "timestamp", "blockchain"],
-  "author": "",
-  "license": "ISC"
+  }
 }

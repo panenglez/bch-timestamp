@@ -3,60 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BCH Notary</title>
-    
-    <!-- Import Map to resolve modules -->
-    <script type="importmap">
-    {
-        "imports": {
-            "mainnet-js": "https://unpkg.com/mainnet-js@1.2.0/dist/web/mainnet.js"
-        }
-    }
-    </script>
-    
+    <title>BCH Notary - Timestamp App</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; background: #f4f4f4; }
-        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            max-width: 600px; 
+            margin: 2rem auto; 
+            padding: 1rem; 
+            background: #f4f4f4; 
+        }
+        .container { 
+            background: white; 
+            padding: 2rem; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        h1 { text-align: center; color: #333; }
         .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
-        input[type="text"], input[type="file"] { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 1rem; background: #0070f3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
-        button:disabled { background: #ccc; }
-        #status { margin-top: 1.5rem; padding: 1rem; background: #eef; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #555; }
+        input[type="text"], input[type="file"] { 
+            width: 100%; 
+            padding: 0.8rem; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; 
+            padding: 1rem; 
+            background: #0070f3; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
+        button:hover { background: #0050a0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #status { 
+            margin-top: 1.5rem; 
+            padding: 1rem; 
+            background: #eef; 
+            border-radius: 4px; 
+            white-space: pre-wrap; 
+            font-family: monospace; 
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
         .error { background: #f8d7da; color: #721c24; }
+        .success { background: #d4edda; color: #155724; }
+        .warning { 
+            background: #fff3cd; 
+            color: #856404; 
+            padding: 1rem; 
+            border-radius: 4px; 
+            margin-bottom: 1.5rem;
+            border: 1px solid #ffeeba;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>BCH Notary</h1>
+    <h1>🔐 BCH Notary</h1>
+    
+    <div class="warning">
+        <strong>⚠️ Security Warning:</strong> 
+        Use only a wallet with small amounts. The private key is sent to our serverless function for transaction signing.
+    </div>
+
     <div class="form-group">
-        <label>WIF Private Key:</label>
+        <label for="wif">WIF Private Key:</label>
         <input type="text" id="wif" placeholder="L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ">
     </div>
+
     <div class="form-group">
-        <label>Select File:</label>
+        <label for="fileInput">Select File:</label>
         <input type="file" id="fileInput">
     </div>
+
     <button id="timestampBtn">TIMESTAMP NOW</button>
+
     <div id="status">Status: Ready.</div>
 </div>
 
-<script type="module">
-    import mainnet from 'mainnet-js';
-    
-    console.log("Script loaded");
-    console.log("mainnet:", mainnet);
-
+<script>
     const statusDiv = document.getElementById('status');
     const btn = document.getElementById('timestampBtn');
     const wifInput = document.getElementById('wif');
     const fileInput = document.getElementById('fileInput');
 
-    function setStatus(msg, isError = false) {
+    function setStatus(msg, type = 'info') {
         statusDiv.textContent = `Status: ${msg}`;
-        statusDiv.className = isError ? 'error' : '';
+        statusDiv.className = type;
     }
 
     async function hashFile(file) {
@@ -70,33 +110,50 @@
         const wif = wifInput.value.trim();
         const file = fileInput.files[0];
 
-        if (!wif) { setStatus("Error: Enter WIF Key", true); return; }
-        if (!file) { setStatus("Error: Select File", true); return; }
+        if (!wif) {
+            setStatus('Error: Please enter WIF Private Key', 'error');
+            return;
+        }
+        if (!file) {
+            setStatus('Error: Please select a file', 'error');
+            return;
+        }
 
         btn.disabled = true;
-        setStatus("Hashing...");
+        setStatus('Hashing file...');
 
         try {
+            // Hash the file
             const fileHash = await hashFile(file);
-            setStatus(`Hash: ${fileHash}\nCreating transaction...`);
+            setStatus(`File hash: ${fileHash}\nSending to blockchain...`);
 
-            // Use mainnet-js to create wallet and transaction
-            const { Wallet, Network } = mainnet;
-            const wallet = new Wallet(wif, Network.mainnet);
-            
-            const tx = await wallet.send({
-                to: wallet.address,
-                amount: 0,
-                data: fileHash
+            // Call our API
+            const response = await fetch('/api/timestamp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ wif, fileHash })
             });
 
-            setStatus(`Broadcasting...`);
-            const txid = await mainnet.relay(tx);
-            setStatus(`✅ Success! TxID: ${txid}`);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'API request failed');
+            }
+
+            setStatus(
+                `✅ SUCCESS!\n\nTransaction ID:\n${result.txid}\n\nAddress:\n${result.address}\n\nView on blockchain:\nhttps://blockchair.com/bitcoin-cash/transaction/${result.txid}`,
+                'success'
+            );
 
         } catch (error) {
             console.error(error);
-            setStatus(`Error: ${error.message}`, true);
+            let msg = error.message;
+            if (msg.includes('insufficient')) {
+                msg = 'Insufficient funds. Wallet needs BCH for transaction fees.';
+            }
+            setStatus(`Error: ${msg}`, 'error');
         } finally {
             btn.disabled = false;
         }

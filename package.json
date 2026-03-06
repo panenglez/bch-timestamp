@@ -1,0 +1,7 @@
+{
+  "name": "bch-timestamp",
+  "version": "1.0.0",
+  "dependencies": {
+    "mainnet-js": "^1.2.0"
+  }
+}

@@ -3,102 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BCH Notary - Timestamp App</title>
+    <title>BCH Notary</title>
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            max-width: 600px; 
-            margin: 2rem auto; 
-            padding: 1rem; 
-            background: #f4f4f4; 
-        }
-        .container { 
-            background: white; 
-            padding: 2rem; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
-        }
-        h1 { text-align: center; color: #333; }
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; background: #f4f4f4; }
+        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; }
         .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #555; }
-        input[type="text"], input[type="file"] { 
-            width: 100%; 
-            padding: 0.8rem; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            box-sizing: border-box; 
-        }
-        button { 
-            width: 100%; 
-            padding: 1rem; 
-            background: #0070f3; 
-            color: white; 
-            border: none; 
-            border-radius: 4px; 
-            font-size: 1rem; 
-            cursor: pointer; 
-            font-weight: bold;
-        }
-        button:hover { background: #0050a0; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { 
-            margin-top: 1.5rem; 
-            padding: 1rem; 
-            background: #eef; 
-            border-radius: 4px; 
-            white-space: pre-wrap; 
-            font-family: monospace; 
-            font-size: 0.9rem;
-            word-break: break-all;
-        }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+        input[type="text"], input[type="file"] { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 1rem; background: #0070f3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        #status { margin-top: 1.5rem; padding: 1rem; background: #eef; border-radius: 4px; white-space: pre-wrap; font-family: monospace; word-break: break-all; }
         .error { background: #f8d7da; color: #721c24; }
-        .success { background: #d4edda; color: #155724; }
-        .warning { 
-            background: #fff3cd; 
-            color: #856404; 
-            padding: 1rem; 
-            border-radius: 4px; 
-            margin-bottom: 1.5rem;
-            border: 1px solid #ffeeba;
-        }
+        .warning { background: #fff3cd; color: #856404; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <h1>🔐 BCH Notary</h1>
-    
-    <div class="warning">
-        <strong>⚠️ Security Warning:</strong> 
-        Use only a wallet with small amounts. The private key is sent to our serverless function for transaction signing.
-    </div>
-
+    <h1>BCH Notary</h1>
+    <div class="warning"><strong>Warning:</strong> Use only a wallet with small amounts of BCH.</div>
     <div class="form-group">
-        <label for="wif">WIF Private Key:</label>
+        <label>WIF Private Key:</label>
         <input type="text" id="wif" placeholder="L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ">
     </div>
-
     <div class="form-group">
-        <label for="fileInput">Select File:</label>
+        <label>Select File:</label>
         <input type="file" id="fileInput">
     </div>
-
     <button id="timestampBtn">TIMESTAMP NOW</button>
-
     <div id="status">Status: Ready.</div>
 </div>
 
 <script>
     const statusDiv = document.getElementById('status');
     const btn = document.getElementById('timestampBtn');
-    const wifInput = document.getElementById('wif');
-    const fileInput = document.getElementById('fileInput');
-
-    function setStatus(msg, type = 'info') {
-        statusDiv.textContent = `Status: ${msg}`;
-        statusDiv.className = type;
-    }
-
+    
     async function hashFile(file) {
         const buffer = await file.arrayBuffer();
         const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
@@ -107,58 +46,38 @@
     }
 
     btn.addEventListener('click', async () => {
-        const wif = wifInput.value.trim();
-        const file = fileInput.files[0];
+        const wif = document.getElementById('wif').value.trim();
+        const file = document.getElementById('fileInput').files[0];
 
-        if (!wif) {
-            setStatus('Error: Please enter WIF Private Key', 'error');
-            return;
-        }
-        if (!file) {
-            setStatus('Error: Please select a file', 'error');
-            return;
-        }
+        if (!wif) { statusDiv.textContent = 'Error: Enter WIF'; statusDiv.className = 'error'; return; }
+        if (!file) { statusDiv.textContent = 'Error: Select file'; statusDiv.className = 'error'; return; }
 
         btn.disabled = true;
-        setStatus('Hashing file...');
+        statusDiv.textContent = 'Hashing...';
 
         try {
-            // Hash the file
             const fileHash = await hashFile(file);
-            setStatus(`File hash: ${fileHash}\nSending to blockchain...`);
+            statusDiv.textContent = `Hash: ${fileHash}\nSending...`;
 
-            // Call our API
             const response = await fetch('/api/timestamp', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ wif, fileHash })
             });
 
             const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || 'API request failed');
-            }
-
-            setStatus(
-                `✅ SUCCESS!\n\nTransaction ID:\n${result.txid}\n\nAddress:\n${result.address}\n\nView on blockchain:\nhttps://blockchair.com/bitcoin-cash/transaction/${result.txid}`,
-                'success'
-            );
-
+            
+            if (!response.ok) throw new Error(result.error);
+            
+            statusDiv.textContent = `✅ Success!\nTxID: ${result.txid}\nhttps://blockchair.com/bitcoin-cash/transaction/${result.txid}`;
+            statusDiv.className = '';
         } catch (error) {
-            console.error(error);
-            let msg = error.message;
-            if (msg.includes('insufficient')) {
-                msg = 'Insufficient funds. Wallet needs BCH for transaction fees.';
-            }
-            setStatus(`Error: ${msg}`, 'error');
+            statusDiv.textContent = `Error: ${error.message}`;
+            statusDiv.className = 'error';
         } finally {
             btn.disabled = false;
         }
     });
 </script>
-
 </body>
 </html>

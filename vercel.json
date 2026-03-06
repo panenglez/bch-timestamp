@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/*.js": {
+      "includeFiles": "package.json"
+    }
+  },
+  "buildCommand": "npm install",
+  "outputDirectory": "."
+}

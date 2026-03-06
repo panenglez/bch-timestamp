@@ -2,64 +2,78 @@
 <html lang="el">
 <head>
     <meta charset="UTF-8">
-    <title>BCH Notary - Ultra Light</title>
-    <script src="https://unpkg.com/jireh@1.0.4/dist/jireh.min.js"></script>
+    <title>BCH Notary - Cloud Online</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mainnet-cash/mainnet-js/dist/mainnet.js"></script>
+    
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
         .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 400px; }
+        h2 { color: #00d54b; text-align: center; }
         input, button { width: 100%; margin: 10px 0; padding: 12px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #00d54b; color: white; border: none; font-weight: bold; cursor: pointer; }
-        #log { background: #222; color: #0f0; padding: 15px; font-family: monospace; font-size: 11px; border-radius: 5px; min-height: 80px; word-break: break-all; }
+        button { background: #00d54b; color: white; border: none; font-weight: bold; cursor: pointer; opacity: 0.6; }
+        button.enabled { opacity: 1; }
+        #log { background: #222; color: #0f0; padding: 15px; font-family: monospace; font-size: 11px; border-radius: 5px; min-height: 80px; word-break: break-all; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color:#00d54b; text-align:center;">BCH Notary</h2>
-    <input type="password" id="wif" placeholder="Επικόλλησε το WIF">
+    <h2>BCH Notary</h2>
+    <p style="font-size: 11px; color: #666; text-align: center;">Online Library Mode</p>
+    
+    <input type="password" id="wif" placeholder="Επικόλλησε το WIF σου">
     <input type="file" id="file">
-    <button onclick="start()">TIMESTAMP NOW</button>
-    <div id="log">Status: Ready.</div>
+    
+    <button id="btn" onclick="process()" disabled>ΠΕΡΙΜΕΝΕΤΕ...</button>
+    
+    <div id="log">Status: Έλεγχος σύνδεσης με τη βιβλιοθήκη...</div>
 </div>
 
 <script>
-    async function start() {
-        const log = document.getElementById('log');
-        const wif = document.getElementById('wif').value;
+    const log = document.getElementById('log');
+    const btn = document.getElementById('btn');
+
+    // Έλεγχος αν η βιβλιοθήκη φορτώθηκε από το CDN
+    window.onload = () => {
+        setTimeout(() => {
+            if (typeof window.mainnet !== 'undefined' || typeof window.DefaultWallet !== 'undefined') {
+                log.innerText = "Status: Η βιβλιοθήκη φορτώθηκε επιτυχώς!";
+                btn.disabled = false;
+                btn.innerText = "TIMESTAMP ON BCH";
+                btn.classList.add('enabled');
+            } else {
+                log.innerText = "❌ ΣΦΑΛΜΑ: Η βιβλιοθήκη μπλοκάρεται από τον browser ή το δίκτυο. \n\nΔοκιμάστε να κλείσετε το AdBlock ή το Brave Shields.";
+            }
+        }, 2000);
+    };
+
+    async function process() {
+        const wif = document.getElementById('wif').value.trim();
         const file = document.getElementById('file').files[0];
 
-        if (!wif || !file) return alert("Συμπλήρωσε τα πάντα!");
+        if (!wif || !file) return alert("Δώσε WIF και Αρχείο");
 
         try {
-            log.innerText = "Υπολογισμός Hash...";
+            log.innerText = "🔑 Προετοιμασία πορτοφαλιού...";
+            // Δοκιμάζουμε και τα δύο πιθανά ονόματα της βιβλιοθήκης στο window
+            const Mainnet = window.mainnet || window.DefaultWallet;
+            const wallet = await window.mainnet.Wallet.fromWIF(wif);
+            
+            log.innerText = "📄 Υπολογισμός Hash αρχείου...";
             const buffer = await file.arrayBuffer();
             const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
             const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-            log.innerText = "Προετοιμασία συναλλαγής (Light Mode)...";
+            log.innerText = "🔗 Hash: " + hash + "\nΑποστολή στο Blockchain...";
+            const { txId } = await wallet.send([{ opReturn: ["0x6d02", hash] }]);
             
-            // Χρησιμοποιούμε το Minimal API για BCH
-            const response = await fetch('https://rest.mainnet.cash/v1/wallet/hash_timestamp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    wif: wif,
-                    hash: hash,
-                    message: "0x6d02" // Memo.cash prefix
-                })
-            });
-
-            const result = await response.json();
-            
-            if (result.txId) {
-                log.innerHTML = `✅ ΕΠΙΤΥΧΙΑ!<br>TXID: <a href="https://blockchair.com/bitcoin-cash/transaction/${result.txId}" target="_blank" style="color:#0f0">${result.txId}</a>`;
-            } else {
-                throw new Error(result.message || "Αποτυχία συναλλαγής");
-            }
+            log.innerHTML = "✅ ΕΠΙΤΥΧΙΑ!<br><br>TXID:<br><a href='https://blockchair.com/bitcoin-cash/transaction/" + txId + "' target='_blank' style='color:#0f0;'>" + txId + "</a>";
         } catch (e) {
-            log.innerText = "ΣΦΑΛΜΑ: " + e.message;
+            log.innerText = "❌ ΣΦΑΛΜΑ ΔΙΚΤΥΟΥ: " + e.message + "\n\nΠιθανή αιτία: Ο πάροχος ίντερνετ μπλοκάρει τη σύνδεση με το BCH Node.";
         }
     }
 </script>
+
 </body>
 </html>
